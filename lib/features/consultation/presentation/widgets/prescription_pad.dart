@@ -5,7 +5,17 @@ import '../../../../core/theme/app_colors.dart';
 
 class PrescriptionPad extends ConsumerStatefulWidget {
   final int consultationId;
-  const PrescriptionPad({required this.consultationId, super.key});
+  final int? eventId;
+  final int? prescriptionId;
+  final Map<String, dynamic>? initialData;
+
+  const PrescriptionPad({
+    required this.consultationId,
+    this.eventId,
+    this.prescriptionId,
+    this.initialData,
+    super.key,
+  });
 
   @override
   ConsumerState<PrescriptionPad> createState() => _PrescriptionPadState();
@@ -15,17 +25,30 @@ class _PrescriptionPadState extends ConsumerState<PrescriptionPad> {
   final _drugController = TextEditingController();
   final _dosageController = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialData != null) {
+      _drugController.text = widget.initialData!['drugName'] ?? '';
+      _dosageController.text = widget.initialData!['dosage'] ?? '';
+    }
+  }
+
   Color _getPillColor(String text) {
     final t = text.toLowerCase();
-    if (t.contains('antibiotic') || t.contains('ill') || t.contains('ox'))
+    if (t.contains('antibiotic') || t.contains('ill') || t.contains('ox')) {
       return Colors.red.shade100;
-    if (t.contains('pain') || t.contains('profen') || t.contains('mg'))
+    }
+    if (t.contains('pain') || t.contains('profen') || t.contains('mg')) {
       return Colors.blue.shade100;
+    }
     return AppColors.sage100;
   }
 
   @override
   Widget build(BuildContext context) {
+    final isEditing = widget.eventId != null;
+
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -44,7 +67,7 @@ class _PrescriptionPadState extends ConsumerState<PrescriptionPad> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Prescribe Medication",
+                isEditing ? "Update Prescription" : "Prescribe Medication",
                 style: Theme.of(
                   context,
                 ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -124,15 +147,28 @@ class _PrescriptionPadState extends ConsumerState<PrescriptionPad> {
               onPressed: () async {
                 if (_drugController.text.isEmpty) return;
 
-                await ref
-                    .read(consultationControllerProvider)
-                    .addPrescription(
-                      widget.consultationId,
-                      drugName: _drugController.text,
-                      dosage: _dosageController.text,
-                    );
+                if (isEditing) {
+                  await ref
+                      .read(consultationControllerProvider)
+                      .updatePrescription(
+                        widget.eventId!,
+                        prescriptionId: widget.prescriptionId,
+                        drugName: _drugController.text,
+                        dosage: _dosageController.text,
+                      );
+                } else {
+                  await ref
+                      .read(consultationControllerProvider)
+                      .addPrescription(
+                        widget.consultationId,
+                        drugName: _drugController.text,
+                        dosage: _dosageController.text,
+                      );
+                }
 
-                if (mounted) Navigator.pop(context);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                }
               },
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.midnight900,
@@ -141,7 +177,7 @@ class _PrescriptionPadState extends ConsumerState<PrescriptionPad> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text("Sign & Prescribe"),
+              child: Text(isEditing ? "Update & Save" : "Sign & Prescribe"),
             ),
           ),
           const SizedBox(height: 24),

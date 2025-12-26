@@ -63,11 +63,10 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                       .unlock(value);
                   if (!success) {
                     _pinController.clear();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Incorrect PIN")),
-                      );
-                    }
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Incorrect PIN")),
+                    );
                   }
                 },
               ),
@@ -80,11 +79,10 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                     .unlock(_pinController.text);
                 if (!success) {
                   _pinController.clear();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Incorrect PIN")),
-                    );
-                  }
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Incorrect PIN")),
+                  );
                 }
               },
               child: const Text(

@@ -5,7 +5,15 @@ import '../consultation_controller.dart';
 
 class VitalsInputSheet extends ConsumerStatefulWidget {
   final int consultationId;
-  const VitalsInputSheet({required this.consultationId, super.key});
+  final int? eventId;
+  final Map<String, dynamic>? initialData;
+
+  const VitalsInputSheet({
+    required this.consultationId,
+    this.eventId,
+    this.initialData,
+    super.key,
+  });
 
   @override
   ConsumerState<VitalsInputSheet> createState() => _VitalsInputSheetState();
@@ -17,7 +25,24 @@ class _VitalsInputSheetState extends ConsumerState<VitalsInputSheet> {
   final _tempController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.initialData != null) {
+      final data = widget.initialData!;
+      final sys = data['bp_sys'] ?? '';
+      final dia = data['bp_dia'] ?? '';
+      if (sys.isNotEmpty || dia.isNotEmpty) {
+        _bpController.text = "$sys/$dia";
+      }
+      _hrController.text = data['heart_rate']?.toString() ?? '';
+      _tempController.text = data['temp']?.toString() ?? '';
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isEditing = widget.eventId != null;
+
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -37,7 +62,7 @@ class _VitalsInputSheetState extends ConsumerState<VitalsInputSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Record Vitals",
+                isEditing ? "Update Vitals" : "Record Vitals",
                 style: Theme.of(
                   context,
                 ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -123,9 +148,15 @@ class _VitalsInputSheetState extends ConsumerState<VitalsInputSheet> {
                   'temp': _tempController.text,
                 };
 
-                await ref
-                    .read(consultationControllerProvider)
-                    .addVitals(widget.consultationId, vitals);
+                if (isEditing) {
+                  await ref
+                      .read(consultationControllerProvider)
+                      .updateVitals(widget.eventId!, vitals);
+                } else {
+                  await ref
+                      .read(consultationControllerProvider)
+                      .addVitals(widget.consultationId, vitals);
+                }
 
                 if (!context.mounted) return;
                 Navigator.pop(context);
@@ -137,7 +168,7 @@ class _VitalsInputSheetState extends ConsumerState<VitalsInputSheet> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text("Save Vitals"),
+              child: Text(isEditing ? "Update Vitals" : "Save Vitals"),
             ),
           ),
           const SizedBox(height: 24),

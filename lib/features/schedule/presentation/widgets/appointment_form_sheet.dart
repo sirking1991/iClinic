@@ -81,7 +81,9 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
       await ref
           .read(scheduleRepositoryProvider)
           .deleteAppointment(widget.appointmentWithPatient!.appointment.id);
-      if (mounted) Navigator.pop(context);
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
     }
   }
 
@@ -327,7 +329,9 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
                             );
                       }
 
-                      if (mounted) Navigator.pop(context);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
                     },
               style: FilledButton.styleFrom(
                 backgroundColor: isEditing

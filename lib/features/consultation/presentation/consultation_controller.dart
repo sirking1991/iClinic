@@ -52,6 +52,63 @@ class ConsultationController {
       duration: duration,
     );
   }
+
+  Future<void> addLabRequest(
+    int consultationId, {
+    required List<String> tests,
+    String? notes,
+  }) async {
+    await _repo.addLabRequest(consultationId, tests: tests, notes: notes);
+  }
+
+  Future<void> updateNote(int eventId, String text) async {
+    if (text.trim().isEmpty) return;
+    await _repo.updateNote(eventId, text);
+  }
+
+  Future<void> updateVitals(int eventId, Map<String, dynamic> data) async {
+    await _repo.updateVitals(eventId, data);
+  }
+
+  Future<void> updateLabRequest(
+    int eventId, {
+    required List<String> tests,
+    String? notes,
+  }) async {
+    await _repo.updateLabRequest(eventId, tests: tests, notes: notes);
+  }
+
+  Future<void> updatePrescription(
+    int eventId, {
+    int? prescriptionId,
+    required String drugName,
+    required String dosage,
+    String? frequency,
+    String? duration,
+  }) async {
+    await _repo.updatePrescription(
+      eventId,
+      prescriptionId: prescriptionId,
+      drugName: drugName,
+      dosage: dosage,
+      frequency: frequency,
+      duration: duration,
+    );
+  }
+
+  Future<void> updateConsultationNotes(
+    int id, {
+    String? s,
+    String? o,
+    String? a,
+    String? p,
+  }) async {
+    await _repo.updateConsultationNotes(id, s: s, o: o, a: a, p: p);
+  }
+
+  Future<void> deleteStreamEvent(int eventId) async {
+    await _repo.deleteStreamEvent(eventId);
+  }
 }
 
 final consultationControllerProvider = Provider((ref) {

@@ -7,11 +7,29 @@ import '../../../core/theme/app_colors.dart';
 import '../data/patient_repository.dart';
 import '../../../core/database/database.dart';
 
-class PatientListScreen extends ConsumerWidget {
-  const PatientListScreen({super.key});
+class PatientListScreen extends ConsumerStatefulWidget {
+  final bool showAddDialog;
+  const PatientListScreen({super.key, this.showAddDialog = false});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PatientListScreen> createState() => _PatientListScreenState();
+}
+
+class _PatientListScreenState extends ConsumerState<PatientListScreen> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.showAddDialog) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showAddPatientDialog(context, ref);
+        // Clear the query param so it doesn't pop up again on refresh/back
+        if (mounted) context.go('/patients');
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final patientsAsync = ref.watch(patientsStreamProvider);
 
     return Scaffold(

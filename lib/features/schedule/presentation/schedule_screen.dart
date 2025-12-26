@@ -10,11 +10,38 @@ final scheduleStreamProvider = StreamProvider((ref) {
   return ref.watch(scheduleRepositoryProvider).watchUpcomingAppointments();
 });
 
-class ScheduleScreen extends ConsumerWidget {
-  const ScheduleScreen({super.key});
+class ScheduleScreen extends ConsumerStatefulWidget {
+  final bool showAddDialog;
+  const ScheduleScreen({super.key, this.showAddDialog = false});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ScheduleScreen> createState() => _ScheduleScreenState();
+}
+
+class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.showAddDialog) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showNewAppointmentSheet();
+        // Clear the query param so it doesn't pop up again on refresh/back
+        if (mounted) context.go('/schedule');
+      });
+    }
+  }
+
+  void _showNewAppointmentSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const AppointmentFormSheet(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final scheduleAsync = ref.watch(scheduleStreamProvider);
 
     return Scaffold(
@@ -176,14 +203,7 @@ class ScheduleScreen extends ConsumerWidget {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (context) => const AppointmentFormSheet(),
-          );
-        },
+        onPressed: _showNewAppointmentSheet,
         label: const Text("New Appointment"),
         icon: const Icon(Icons.add),
         backgroundColor: AppColors.sage500,

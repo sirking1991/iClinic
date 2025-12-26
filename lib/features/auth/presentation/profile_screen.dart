@@ -61,8 +61,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
       body: doctorAsync.when(
         data: (doctor) {
-          if (doctor == null)
+          if (doctor == null) {
             return const Center(child: Text("No account found"));
+          }
 
           if (!_isInitialized) {
             _nameController.text = doctor.fullName;

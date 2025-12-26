@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../consultation_controller.dart';
 
 const commonLabs = [
   'CBC (Complete Blood Count)',
@@ -12,19 +14,73 @@ const commonLabs = [
   'ECG',
 ];
 
-class LabRequestSheet extends StatefulWidget {
-  const LabRequestSheet({super.key});
+class LabRequestSheet extends ConsumerStatefulWidget {
+  final int consultationId;
+  final int? eventId;
+  final Map<String, dynamic>? initialData;
+
+  const LabRequestSheet({
+    required this.consultationId,
+    this.eventId,
+    this.initialData,
+    super.key,
+  });
 
   @override
-  State<LabRequestSheet> createState() => _LabRequestSheetState();
+  ConsumerState<LabRequestSheet> createState() => _LabRequestSheetState();
 }
 
-class _LabRequestSheetState extends State<LabRequestSheet> {
+class _LabRequestSheetState extends ConsumerState<LabRequestSheet> {
   final Set<String> _selectedLabs = {};
   final _noteController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.initialData != null) {
+      final tests = widget.initialData!['tests'] as List?;
+      if (tests != null) {
+        _selectedLabs.addAll(tests.cast<String>());
+      }
+      _noteController.text = widget.initialData!['notes'] ?? '';
+    }
+  }
+
+  Future<void> _handleSave() async {
+    if (_selectedLabs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select at least one test")),
+      );
+      return;
+    }
+
+    if (widget.eventId != null) {
+      await ref
+          .read(consultationControllerProvider)
+          .updateLabRequest(
+            widget.eventId!,
+            tests: _selectedLabs.toList(),
+            notes: _noteController.text,
+          );
+    } else {
+      await ref
+          .read(consultationControllerProvider)
+          .addLabRequest(
+            widget.consultationId,
+            tests: _selectedLabs.toList(),
+            notes: _noteController.text,
+          );
+    }
+
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isEditing = widget.eventId != null;
+
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -44,7 +100,7 @@ class _LabRequestSheetState extends State<LabRequestSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Lab Request",
+                isEditing ? "Update Lab Request" : "Lab Request",
                 style: Theme.of(
                   context,
                 ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -132,7 +188,7 @@ class _LabRequestSheetState extends State<LabRequestSheet> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: _handleSave,
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.midnight900,
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -140,7 +196,7 @@ class _LabRequestSheetState extends State<LabRequestSheet> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text("Generate Request"),
+              child: Text(isEditing ? "Update Request" : "Generate Request"),
             ),
           ),
           const SizedBox(height: 24),

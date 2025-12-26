@@ -54,11 +54,268 @@ class _ConsultationStreamState extends ConsumerState<ConsultationStream> {
     );
   }
 
-  void _openLabs() {
+  void _openLabs(int consultationId) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => const LabRequestSheet(),
+      builder: (context) => LabRequestSheet(consultationId: consultationId),
+    );
+  }
+
+  void _showEditNoteDialog(int eventId, String initialText) {
+    final controller = TextEditingController(text: initialText);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          "Edit Note",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: TextField(
+          controller: controller,
+          maxLines: null,
+          decoration: InputDecoration(
+            hintText: "Enter note...",
+            filled: true,
+            fillColor: AppColors.sage50,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(color: AppColors.sage400),
+            ),
+          ),
+          FilledButton(
+            onPressed: () {
+              ref
+                  .read(consultationControllerProvider)
+                  .updateNote(eventId, controller.text);
+              Navigator.pop(ctx);
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.sage500,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditVitals(
+    int consultationId,
+    int eventId,
+    Map<String, dynamic> initialData,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => VitalsInputSheet(
+        consultationId: consultationId,
+        eventId: eventId,
+        initialData: initialData,
+      ),
+    );
+  }
+
+  void _showEditPrescription(
+    int consultationId,
+    int eventId,
+    Map<String, dynamic> initialData,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => PrescriptionPad(
+        consultationId: consultationId,
+        eventId: eventId,
+        prescriptionId: initialData['prescriptionId'],
+        initialData: initialData,
+      ),
+    );
+  }
+
+  void _showEditSoap(
+    int consultationId,
+    int eventId,
+    Map<String, dynamic> initialData,
+  ) {
+    final sController = TextEditingController(text: initialData['s'] ?? '');
+    final oController = TextEditingController(text: initialData['o'] ?? '');
+    final aController = TextEditingController(text: initialData['a'] ?? '');
+    final pController = TextEditingController(text: initialData['p'] ?? '');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          left: 20,
+          right: 20,
+          top: 20,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Edit SOAP Notes",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildSoapField("Subjective", sController),
+              const SizedBox(height: 12),
+              _buildSoapField("Objective", oController),
+              const SizedBox(height: 12),
+              _buildSoapField("Assessment", aController),
+              const SizedBox(height: 12),
+              _buildSoapField("Plan", pController),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () {
+                  ref
+                      .read(consultationControllerProvider)
+                      .updateConsultationNotes(
+                        consultationId,
+                        s: sController.text,
+                        o: oController.text,
+                        a: aController.text,
+                        p: pController.text,
+                      );
+                  ref.invalidate(activeConsultationProvider(widget.patientId));
+                  Navigator.pop(context);
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.sage500,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text("Update SOAP Notes"),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSoapField(String label, TextEditingController controller) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+            color: AppColors.sage600,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          maxLines: null,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: AppColors.sage50,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 8,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showEditLabs(
+    int consultationId,
+    int eventId,
+    Map<String, dynamic> initialData,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => LabRequestSheet(
+        consultationId: consultationId,
+        eventId: eventId,
+        initialData: initialData,
+      ),
+    );
+  }
+
+  void _confirmDelete(int eventId) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          "Delete Entry",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: const Text("Are you sure you want to delete this entry?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(color: AppColors.sage400),
+            ),
+          ),
+          FilledButton(
+            onPressed: () {
+              ref
+                  .read(consultationControllerProvider)
+                  .deleteStreamEvent(eventId);
+              Navigator.pop(ctx);
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
     );
   }
 
@@ -129,6 +386,32 @@ class _ConsultationStreamState extends ConsumerState<ConsultationStream> {
                             displayText += " (${content['frequency']})";
                           }
                           icon = Icons.medication;
+                        } else if (event.type == 'lab') {
+                          final tests =
+                              (content['tests'] as List?)?.join(', ') ?? '';
+                          displayText = "Lab Request: $tests";
+                          if (content['notes'] != null &&
+                              content['notes'].isNotEmpty) {
+                            displayText += "\nNote: ${content['notes']}";
+                          }
+                          icon = Icons.science;
+                        } else if (event.type == 'soap') {
+                          final s = content['s'] ?? '';
+                          final o = content['o'] ?? '';
+                          final a = content['a'] ?? '';
+                          final p = content['p'] ?? '';
+
+                          displayText = "SOAP Notes Updated";
+                          List<String> parts = [];
+                          if (s.isNotEmpty) parts.add("S: $s");
+                          if (o.isNotEmpty) parts.add("O: $o");
+                          if (a.isNotEmpty) parts.add("A: $a");
+                          if (p.isNotEmpty) parts.add("P: $p");
+
+                          if (parts.isNotEmpty) {
+                            displayText += "\n\n" + parts.join("\n\n");
+                          }
+                          icon = Icons.assignment;
                         }
 
                         return Container(
@@ -150,19 +433,102 @@ class _ConsultationStreamState extends ConsumerState<ConsultationStream> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Icon(
-                                    icon,
-                                    size: 14,
-                                    color: AppColors.sage400,
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        icon,
+                                        size: 14,
+                                        color: AppColors.sage400,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        "$timeStr • ${event.authorName}",
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.sage400,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    "$timeStr • ${event.authorName}",
-                                    style: const TextStyle(
-                                      fontSize: 12,
+                                  PopupMenuButton<String>(
+                                    icon: const Icon(
+                                      Icons.more_horiz,
+                                      size: 16,
                                       color: AppColors.sage400,
                                     ),
+                                    padding: EdgeInsets.zero,
+                                    onSelected: (value) {
+                                      if (value == 'edit') {
+                                        if (event.type == 'note') {
+                                          _showEditNoteDialog(
+                                            event.id,
+                                            content['text'] ?? '',
+                                          );
+                                        } else if (event.type == 'vitals') {
+                                          _showEditVitals(
+                                            consultation.id,
+                                            event.id,
+                                            content,
+                                          );
+                                        } else if (event.type ==
+                                            'prescription') {
+                                          _showEditPrescription(
+                                            consultation.id,
+                                            event.id,
+                                            content,
+                                          );
+                                        } else if (event.type == 'lab') {
+                                          _showEditLabs(
+                                            consultation.id,
+                                            event.id,
+                                            content,
+                                          );
+                                        } else if (event.type == 'soap') {
+                                          _showEditSoap(
+                                            consultation.id,
+                                            event.id,
+                                            content,
+                                          );
+                                        }
+                                      } else if (value == 'delete') {
+                                        _confirmDelete(event.id);
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      if (event.type != 'image')
+                                        const PopupMenuItem(
+                                          value: 'edit',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.edit, size: 16),
+                                              SizedBox(width: 8),
+                                              Text('Edit'),
+                                            ],
+                                          ),
+                                        ),
+                                      const PopupMenuItem(
+                                        value: 'delete',
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.delete_outline,
+                                              size: 16,
+                                              color: Colors.redAccent,
+                                            ),
+                                            SizedBox(width: 8),
+                                            Text(
+                                              'Delete',
+                                              style: TextStyle(
+                                                color: Colors.redAccent,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -255,7 +621,7 @@ class _ConsultationStreamState extends ConsumerState<ConsultationStream> {
                                   title: const Text('Lab Request'),
                                   onTap: () {
                                     Navigator.pop(ctx);
-                                    _openLabs();
+                                    _openLabs(consultation.id);
                                   },
                                 ),
                                 ListTile(

@@ -65,7 +65,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
           GoRoute(
             path: '/patients',
-            builder: (context, state) => const PatientListScreen(),
+            builder: (context, state) {
+              final showAddDialog =
+                  state.uri.queryParameters['action'] == 'new';
+              return PatientListScreen(showAddDialog: showAddDialog);
+            },
           ),
           GoRoute(
             path: '/patient/:id',
@@ -76,7 +80,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/schedule',
-            builder: (context, state) => const ScheduleScreen(),
+            builder: (context, state) {
+              final showAddDialog =
+                  state.uri.queryParameters['action'] == 'new';
+              return ScheduleScreen(showAddDialog: showAddDialog);
+            },
           ),
           GoRoute(
             path: '/profile',

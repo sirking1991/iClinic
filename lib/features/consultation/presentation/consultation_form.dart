@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../data/consultation_repository.dart';
 import '../../../core/theme/app_colors.dart';
 import 'consultation_controller.dart';
 
@@ -20,7 +19,7 @@ class _ConsultationFormState extends ConsumerState<ConsultationForm> {
 
   Future<void> _save(int consultationId) async {
     await ref
-        .read(consultationRepositoryProvider)
+        .read(consultationControllerProvider)
         .updateConsultationNotes(
           consultationId,
           s: _sController.text,
@@ -28,6 +27,15 @@ class _ConsultationFormState extends ConsumerState<ConsultationForm> {
           a: _aController.text,
           p: _pController.text,
         );
+
+    _sController.clear();
+    _oController.clear();
+    _aController.clear();
+    _pController.clear();
+
+    // Invalidate the provider to fetch the updated (cleared) data from the database
+    ref.invalidate(activeConsultationProvider(widget.patientId));
+
     if (mounted) {
       ScaffoldMessenger.of(
         context,

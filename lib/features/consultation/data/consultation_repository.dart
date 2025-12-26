@@ -49,7 +49,7 @@ class ConsultationRepository {
           ..where((t) => t.consultationId.equals(consultationId))
           ..orderBy([
             (t) =>
-                OrderingTerm(expression: t.timestamp, mode: OrderingMode.asc),
+                OrderingTerm(expression: t.timestamp, mode: OrderingMode.desc),
           ]))
         .watch();
   }
@@ -109,24 +109,21 @@ class ConsultationRepository {
     String? duration,
   }) async {
     // 1. Add to the Prescriptions table
-    await _db
+    final prescriptionId = await _db
         .into(_db.prescriptions)
         .insert(
           PrescriptionsCompanion.insert(
             consultationId: consultationId,
             drugName: drugName,
             dosage: dosage,
-            frequency: frequency != null
-                ? Value<String>(frequency)
-                : const Value.absent(),
-            duration: duration != null
-                ? Value<String>(duration)
-                : const Value.absent(),
+            frequency: frequency ?? '',
+            duration: duration ?? '',
           ),
         );
 
     // 2. Add as an event to the stream for the timeline
     final timelineContent = jsonEncode({
+      'prescriptionId': prescriptionId,
       'drugName': drugName,
       'dosage': dosage,
       'frequency': frequency,
@@ -145,6 +142,24 @@ class ConsultationRepository {
         );
   }
 
+  Future<void> addLabRequest(
+    int consultationId, {
+    required List<String> tests,
+    String? notes,
+  }) async {
+    final content = jsonEncode({'tests': tests, 'notes': notes});
+    await _db
+        .into(_db.streamEvents)
+        .insert(
+          StreamEventsCompanion.insert(
+            consultationId: consultationId,
+            type: 'lab',
+            contentJson: content,
+            authorName: 'Dr. Sherwin',
+          ),
+        );
+  }
+
   Future<void> updateConsultationNotes(
     int id, {
     String? s,
@@ -152,6 +167,7 @@ class ConsultationRepository {
     String? a,
     String? p,
   }) async {
+    // 1. Update the consultations table
     await (_db.update(_db.consultations)..where((t) => t.id.equals(id))).write(
       ConsultationsCompanion(
         subjectiveNotes: s != null ? Value(s) : const Value.absent(),
@@ -160,5 +176,161 @@ class ConsultationRepository {
         plan: p != null ? Value(p) : const Value.absent(),
       ),
     );
+
+    // 2. Sync with stream_events
+    // Fetch the latest consultation state to ensure we have all fields for the JSON snapshot
+    final consultation = await (_db.select(
+      _db.consultations,
+    )..where((t) => t.id.equals(id))).getSingle();
+
+    final content = jsonEncode({
+      's': consultation.subjectiveNotes,
+      'o': consultation.objectiveNotes,
+      'a': consultation.assessment,
+      'p': consultation.plan,
+    });
+
+    final existing =
+        await (_db.select(_db.streamEvents)
+              ..where(
+                (t) => t.consultationId.equals(id) & t.type.equals('soap'),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+
+    if (existing != null) {
+      await (_db.update(
+        _db.streamEvents,
+      )..where((t) => t.id.equals(existing.id))).write(
+        StreamEventsCompanion(
+          contentJson: Value(content),
+          timestamp: Value(DateTime.now()), // Push to top of stream
+        ),
+      );
+    } else {
+      await _db
+          .into(_db.streamEvents)
+          .insert(
+            StreamEventsCompanion.insert(
+              consultationId: id,
+              type: 'soap',
+              contentJson: content,
+              authorName: 'Dr. Sherwin',
+              timestamp: Value(DateTime.now()),
+            ),
+          );
+    }
+
+    // 3. Clear the draft in the consultations table so the form is empty next time
+    await (_db.update(_db.consultations)..where((t) => t.id.equals(id))).write(
+      const ConsultationsCompanion(
+        subjectiveNotes: Value(null),
+        objectiveNotes: Value(null),
+        assessment: Value(null),
+        plan: Value(null),
+      ),
+    );
+  }
+
+  Future<void> updateNote(int eventId, String text) async {
+    final content = jsonEncode({'text': text});
+    await (_db.update(_db.streamEvents)..where((t) => t.id.equals(eventId)))
+        .write(StreamEventsCompanion(contentJson: Value(content)));
+  }
+
+  Future<void> updateVitals(
+    int eventId,
+    Map<String, dynamic> vitalsData,
+  ) async {
+    await (_db.update(
+      _db.streamEvents,
+    )..where((t) => t.id.equals(eventId))).write(
+      StreamEventsCompanion(contentJson: Value(jsonEncode(vitalsData))),
+    );
+  }
+
+  Future<void> updateLabRequest(
+    int eventId, {
+    required List<String> tests,
+    String? notes,
+  }) async {
+    final content = jsonEncode({'tests': tests, 'notes': notes});
+    await (_db.update(_db.streamEvents)..where((t) => t.id.equals(eventId)))
+        .write(StreamEventsCompanion(contentJson: Value(content)));
+  }
+
+  Future<void> updatePrescription(
+    int eventId, {
+    int? prescriptionId,
+    required String drugName,
+    required String dosage,
+    String? frequency,
+    String? duration,
+  }) async {
+    // 1. Update the Prescriptions table if we have an ID
+    if (prescriptionId != null) {
+      await (_db.update(
+        _db.prescriptions,
+      )..where((t) => t.id.equals(prescriptionId))).write(
+        PrescriptionsCompanion(
+          drugName: Value(drugName),
+          dosage: Value(dosage),
+          frequency: Value(frequency ?? ''),
+          duration: Value(duration ?? ''),
+        ),
+      );
+    }
+
+    // 2. Update the StreamEvent
+    final content = jsonEncode({
+      if (prescriptionId != null) 'prescriptionId': prescriptionId,
+      'drugName': drugName,
+      'dosage': dosage,
+      'frequency': frequency,
+      'duration': duration,
+    });
+
+    await (_db.update(_db.streamEvents)..where((t) => t.id.equals(eventId)))
+        .write(StreamEventsCompanion(contentJson: Value(content)));
+  }
+
+  Future<void> deleteStreamEvent(int eventId) async {
+    final event = await (_db.select(
+      _db.streamEvents,
+    )..where((t) => t.id.equals(eventId))).getSingleOrNull();
+
+    if (event == null) return;
+
+    // 1. Handle linked data
+    if (event.type == 'prescription') {
+      try {
+        final content = jsonDecode(event.contentJson) as Map<String, dynamic>;
+        final prescriptionId = content['prescriptionId'] as int?;
+        if (prescriptionId != null) {
+          await (_db.delete(
+            _db.prescriptions,
+          )..where((t) => t.id.equals(prescriptionId))).go();
+        }
+      } catch (e) {
+        // Handle potential json decode errors
+      }
+    } else if (event.type == 'soap') {
+      // Clear SOAP data in consultation if deleted
+      await (_db.update(
+        _db.consultations,
+      )..where((t) => t.id.equals(event.consultationId))).write(
+        const ConsultationsCompanion(
+          subjectiveNotes: Value(null),
+          objectiveNotes: Value(null),
+          assessment: Value(null),
+          plan: Value(null),
+        ),
+      );
+    }
+
+    // 2. Delete the event itself
+    await (_db.delete(
+      _db.streamEvents,
+    )..where((t) => t.id.equals(eventId))).go();
   }
 }
